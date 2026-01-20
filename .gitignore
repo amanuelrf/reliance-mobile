@@ -3,6 +3,14 @@
 # dependencies
 node_modules/
 
+
+backend/.env
+backend/app/__pycache__/
+backend/app/core/__pycache__/
+backend/app/db/__pycache__/
+backend/db/migrations/__pycache__/
+backend/venv/lib/
+
 # Expo
 .expo/
 dist/
