@@ -10,7 +10,7 @@ import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export default function BalanceScreen() {
+export default function ReportsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
   const colorScheme = useColorScheme();
@@ -61,13 +61,18 @@ export default function BalanceScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <ThemedText style={styles.pageTitle}>Balance</ThemedText>
+          <View>
+            <ThemedText style={styles.pageTitle}>Reports</ThemedText>
+            <ThemedText style={[styles.pageSubtitle, { color: textSecondary }]}>
+              Track your cash and credit reports
+            </ThemedText>
+          </View>
           <View style={[styles.iconButton, { backgroundColor: surfaceColor }]}>
-            <IconSymbol name="clock.fill" size={22} color={primaryColor} />
+            <IconSymbol name="chart.bar.fill" size={22} color={primaryColor} />
           </View>
         </View>
 
-        {/* Main Balance Card */}
+        {/* Report Summary Card */}
         <Card variant="elevated" style={[styles.balanceCard, { backgroundColor: primaryColor }]}>
           <View style={styles.balanceHeader}>
             <ThemedText style={styles.balanceLabel}>Current Balance</ThemedText>
@@ -238,6 +243,10 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     letterSpacing: -0.5,
+  },
+  pageSubtitle: {
+    fontSize: 14,
+    marginTop: 4,
   },
   iconButton: {
     width: 44,

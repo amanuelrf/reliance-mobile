@@ -3,10 +3,8 @@ import { useState, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
-import { Button } from '@/components/ui/button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -33,17 +31,9 @@ export default function HomeScreen() {
   // Mock data - will be replaced with API calls
   const userData = {
     name: 'John',
-    creditScore: 742,
-    balance: 15250.00,
-    fuelSaved: 1250.50,
-    lastTransaction: 'Shell Station - $45.00',
+    cashReserve: 12600.0,
+    balance: 15250.0,
   };
-
-  const recentTransactions = [
-    { id: 1, merchant: 'Shell Station', amount: -45.00, date: 'Today', type: 'fuel' },
-    { id: 2, merchant: 'Account Credit', amount: 500.00, date: 'Yesterday', type: 'credit' },
-    { id: 3, merchant: 'BP Gas', amount: -62.50, date: 'Jan 12', type: 'fuel' },
-  ];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
@@ -72,41 +62,19 @@ export default function HomeScreen() {
         {/* Quick Stats */}
         <View style={styles.statsRow}>
           <StatCard
-            title="Credit Score"
-            value={userData.creditScore.toString()}
-            icon="checkmark.shield.fill"
+            title="Cash Reserve"
+            value={`$${userData.cashReserve.toLocaleString()}`}
+            icon="dollarsign.circle.fill"
             iconColor={successColor}
-            trend={{ value: 2.5, isPositive: true }}
+            trend={{ value: 4.2, isPositive: true }}
           />
           <StatCard
-            title="Balance"
+            title="Total A/R"
             value={`$${userData.balance.toLocaleString()}`}
             icon="wallet.pass.fill"
             iconColor={primaryColor}
           />
         </View>
-
-        {/* Fuel Savings Card */}
-        <Card variant="elevated" style={styles.fuelCard}>
-          <View style={[styles.fuelCardGradient, { backgroundColor: `${primaryColor}10` }]}>
-            <View style={styles.fuelCardContent}>
-              <View style={[styles.fuelIconContainer, { backgroundColor: `${accentColor}20` }]}>
-                <IconSymbol name="fuelpump.fill" size={32} color={accentColor} />
-              </View>
-              <View style={styles.fuelCardText}>
-                <ThemedText style={[styles.fuelLabel, { color: textSecondary }]}>
-                  Total Fuel Savings
-                </ThemedText>
-                <ThemedText style={[styles.fuelValue, { color: primaryColor }]}>
-                  ${userData.fuelSaved.toLocaleString()}
-                </ThemedText>
-              </View>
-            </View>
-            <Link href="/(tabs)/fuel" asChild>
-              <Button title="View Details" variant="outline" size="sm" />
-            </Link>
-          </View>
-        </Card>
 
         {/* Quick Actions */}
         <ThemedText style={styles.sectionTitle}>Quick Actions</ThemedText>
@@ -143,59 +111,6 @@ export default function HomeScreen() {
           </Card>
         </View>
 
-        {/* Recent Transactions */}
-        <View style={styles.transactionsHeader}>
-          <ThemedText style={styles.sectionTitle}>Recent Activity</ThemedText>
-          <ThemedText style={[styles.viewAll, { color: primaryColor }]}>View All</ThemedText>
-        </View>
-        <Card variant="elevated">
-          {recentTransactions.map((transaction, index) => (
-            <View
-              key={transaction.id}
-              style={[
-                styles.transactionItem,
-                index !== recentTransactions.length - 1 && {
-                  borderBottomWidth: 1,
-                  borderBottomColor: colors.border,
-                },
-              ]}
-            >
-              <View style={styles.transactionLeft}>
-                <View
-                  style={[
-                    styles.transactionIcon,
-                    {
-                      backgroundColor:
-                        transaction.type === 'fuel' ? `${accentColor}15` : `${successColor}15`,
-                    },
-                  ]}
-                >
-                  <IconSymbol
-                    name={transaction.type === 'fuel' ? 'fuelpump.fill' : 'plus.circle.fill'}
-                    size={20}
-                    color={transaction.type === 'fuel' ? accentColor : successColor}
-                  />
-                </View>
-                <View>
-                  <ThemedText style={styles.transactionMerchant}>
-                    {transaction.merchant}
-                  </ThemedText>
-                  <ThemedText style={[styles.transactionDate, { color: textSecondary }]}>
-                    {transaction.date}
-                  </ThemedText>
-                </View>
-              </View>
-              <ThemedText
-                style={[
-                  styles.transactionAmount,
-                  { color: transaction.amount > 0 ? successColor : colors.text },
-                ]}
-              >
-                {transaction.amount > 0 ? '+' : ''}${Math.abs(transaction.amount).toFixed(2)}
-              </ThemedText>
-            </View>
-          ))}
-        </Card>
       </ScrollView>
     </SafeAreaView>
   );
@@ -247,39 +162,6 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     marginBottom: Spacing.lg,
   },
-  fuelCard: {
-    marginBottom: Spacing.lg,
-    padding: 0,
-    overflow: 'hidden',
-  },
-  fuelCardGradient: {
-    padding: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  fuelCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  fuelIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fuelCardText: {
-    gap: Spacing.xs,
-  },
-  fuelLabel: {
-    fontSize: 14,
-  },
-  fuelValue: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -307,45 +189,5 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  transactionsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  viewAll: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  transactionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-  },
-  transactionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  transactionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  transactionMerchant: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  transactionDate: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  transactionAmount: {
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

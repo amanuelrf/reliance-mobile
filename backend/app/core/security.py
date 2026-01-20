@@ -4,6 +4,8 @@ Security utilities for authentication and password hashing
 
 from datetime import datetime, timedelta
 from typing import Optional
+from uuid import uuid4
+import secrets
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -69,3 +71,14 @@ async def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
         raise credentials_exception
     
     return int(user_id)
+
+
+def generate_email_login_code(length: int = 6) -> str:
+    """Generate a numeric one-time login code."""
+    digits = '0123456789'
+    return ''.join(secrets.choice(digits) for _ in range(length))
+
+
+def generate_uuid() -> str:
+    """Create a new UUID string for tracking external resources."""
+    return str(uuid4())

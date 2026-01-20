@@ -24,9 +24,27 @@ class UserLogin(BaseModel):
     password: str
 
 
+class EmailCodeRequest(BaseModel):
+    """Request an email login code"""
+    email: EmailStr
+
+
+class EmailCodeVerifyRequest(BaseModel):
+    """Verify an email login code to authenticate"""
+    email: EmailStr
+    code: str
+
+
+class EmailCodeResponse(BaseModel):
+    """Acknowledges email code creation"""
+    message: str
+
+
 class UserResponse(UserBase):
     """Schema for user response"""
     id: int
+    is_verified: bool
+    last_login: Optional[datetime] = None
     created_at: datetime
 
     class Config:

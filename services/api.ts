@@ -141,10 +141,28 @@ export interface CreditHistory {
   score: number;
 }
 
+export interface CreditCheckRequest {
+  load_amount: number;
+  broker_name?: string;
+  broker_mc_number?: string;
+  broker_dot_number?: string;
+  result?: string;
+  factorcloud_uuid?: string;
+  credit_check_uuid?: string;
+  source?: string;
+}
+
+export interface CreditCheckResponse {
+  score: CreditScore;
+  change: number;
+  message: string;
+}
+
 export const creditApi = {
   getCurrentScore: () => apiRequest<CreditScore>('/credit/score'),
 
-  checkScore: () => apiRequest<CreditScore>('/credit/check', { method: 'POST' }),
+  checkScore: (payload: CreditCheckRequest) =>
+    apiRequest<CreditCheckResponse>('/credit/check', { method: 'POST', body: payload }),
 
   getHistory: (months: number = 6) =>
     apiRequest<CreditHistory[]>(`/credit/history?months=${months}`),

@@ -127,6 +127,31 @@ mysql -u root -p -e "CREATE DATABASE reliance_factor;"
 uvicorn app.main:app --reload
 ```
 
+### Docker Compose
+
+From within the `backend/` directory, use the provided `docker-compose.yml` to launch both the API and MySQL together.
+
+```bash
+cd backend
+docker compose up --build
+```
+
+- The helper file is `backend/docker-compose.yml`, so the compose CLI runs relative to the backend folder.
+- The API is available at `http://localhost:8000` (`/docs` for Swagger, `/health` for the health check).
+- The compose stack provisions MySQL with credentials `rf_user` / `rf_password`, database `reliance_factor`, and publishes it on host port `3307` to avoid conflicts.
+- Run `docker compose down` (still from the `backend` directory) to stop the services; add `-v` to reset the database volume.
+
+### Seeding the User Table
+
+After the database is running, you can seed the `users` table with Amanuel Yohannes once by executing:
+
+```bash
+cd backend
+mysql -h 127.0.0.1 -P 3307 -u rf_user -prf_password reliance_factor < db/migrations/seed_user_amanuel.sql
+```
+
+The SQL script checks for the email `amanuel@reliancefactoring.com` and skips the insert if the record already exists, so it is safe to re-run.
+
 ### Access the APIs
 
 - **Swagger UI**: http://localhost:8000/docs

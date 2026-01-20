@@ -167,7 +167,7 @@ export default function FuelScreen() {
 
         {/* Add Fuel Button */}
         <Button
-          title="Add Fuel Purchase"
+          title="Request Fuel Card"
           variant="primary"
           size="lg"
           icon={<IconSymbol name="plus.circle.fill" size={20} color="#fff" />}

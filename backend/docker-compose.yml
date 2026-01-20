@@ -1,0 +1,70 @@
+version: "3.9"
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: example-root-pw
+      MYSQL_DATABASE: reliance_factor
+      MYSQL_USER: rf_user
+      MYSQL_PASSWORD: rf_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rf_user
+      POSTGRES_PASSWORD: rf_password
+      POSTGRES_DB: reliance_factor
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rf_user -d reliance_factor"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  api:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      SECRET_KEY: development-secret
+      API_V1_PREFIX: /api/v1
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      MYSQL_USER: rf_user
+      MYSQL_PASSWORD: rf_password
+      MYSQL_DATABASE: reliance_factor
+      ACCESS_TOKEN_EXPIRE_MINUTES: 10080
+      EMAIL_LOGIN_CODE_EXPIRE_MINUTES: 10
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: rf_user
+      POSTGRES_PASSWORD: rf_password
+      POSTGRES_DB: reliance_factor
+    volumes:
+      - ./:/app
+
+volumes:
+  db_data:
+  pg_data:

@@ -59,13 +59,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="balance"
+        name="reports"
         options={{
-          title: 'Balance',
+          title: 'Reports',
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol 
               size={focused ? 26 : 24} 
-              name="wallet.pass.fill" 
+              name="chart.bar.fill" 
               color={color} 
             />
           ),
