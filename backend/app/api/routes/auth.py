@@ -38,9 +38,7 @@ def _ensure_balance_for_user(db: Session, user_id: int) -> Balance:
 
     balance = Balance(
         user_id=user_id,
-        current_balance=0.0,
-        available_credit=10000.0,
-        monthly_limit=5000.0,
+        # Fields use defaults from model: total_account_receivable=0.0, reserve=10000.0, etc.
     )
     db.add(balance)
     db.commit()

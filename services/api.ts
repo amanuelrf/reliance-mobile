@@ -3,10 +3,15 @@
  * Handles all communication with the Python FastAPI backend
  */
 
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+
 // Update this to your Azure App Service URL when deployed
 const API_BASE_URL = __DEV__ 
   ? 'http://localhost:8000/api/v1'
   : 'https://your-app-name.azurewebsites.net/api/v1';
+
+const AUTH_TOKEN_KEY = 'auth_token';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -30,6 +35,62 @@ export const setAuthToken = (token: string | null) => {
 };
 
 export const getAuthToken = () => authToken;
+
+/**
+ * Persist auth token to secure storage
+ */
+export const persistAuthToken = async (token: string) => {
+  try {
+    if (Platform.OS === 'web') {
+      // Use localStorage for web
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+    } else {
+      // Use SecureStore for native platforms
+      await SecureStore.setItemAsync(AUTH_TOKEN_KEY, token);
+    }
+    setAuthToken(token);
+  } catch (error) {
+    console.error('Failed to persist auth token:', error);
+    throw error;
+  }
+};
+
+/**
+ * Load auth token from secure storage
+ */
+export const loadAuthToken = async (): Promise<string | null> => {
+  try {
+    let token: string | null = null;
+    if (Platform.OS === 'web') {
+      token = localStorage.getItem(AUTH_TOKEN_KEY);
+    } else {
+      token = await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
+    }
+    if (token) {
+      setAuthToken(token);
+    }
+    return token;
+  } catch (error) {
+    console.error('Failed to load auth token:', error);
+    return null;
+  }
+};
+
+/**
+ * Clear auth token from secure storage
+ */
+export const clearAuthToken = async () => {
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    } else {
+      await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
+    }
+    setAuthToken(null);
+  } catch (error) {
+    console.error('Failed to clear auth token:', error);
+  }
+};
 
 /**
  * Generic API request function
@@ -102,6 +163,25 @@ export interface LoginResponse {
   user: User;
 }
 
+export interface EmailCodeRequest {
+  email: string;
+}
+
+export interface EmailCodeResponse {
+  message: string;
+}
+
+export interface EmailCodeVerifyRequest {
+  email: string;
+  code: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
 export const authApi = {
   login: (credentials: LoginRequest) =>
     apiRequest<LoginResponse>('/auth/login', { method: 'POST', body: credentials }),
@@ -109,8 +189,14 @@ export const authApi = {
   register: (data: { email: string; password: string; name: string }) =>
     apiRequest<User>('/auth/register', { method: 'POST', body: data }),
 
-  logout: () => {
-    setAuthToken(null);
+  sendEmailCode: (email: string) =>
+    apiRequest<EmailCodeResponse>('/auth/send-code', { method: 'POST', body: { email } }),
+
+  verifyEmailCode: (email: string, code: string) =>
+    apiRequest<TokenResponse>('/auth/verify-code', { method: 'POST', body: { email, code } }),
+
+  logout: async () => {
+    await clearAuthToken();
     return Promise.resolve({ data: true, error: null, status: 200 });
   },
 
@@ -270,6 +356,25 @@ export const dashboardApi = {
   getData: () => apiRequest<DashboardData>('/dashboard'),
 };
 
+// ============================================
+// Companies
+// ============================================
+
+export interface CompanyAutocompleteResponse {
+  id: number;
+  name: string;
+  legal_name: string | null;
+  mc_number: number | null;
+  dot_number: number | null;
+}
+
+export const companiesApi = {
+  autocomplete: (query: string, limit: number = 5) =>
+    apiRequest<CompanyAutocompleteResponse[]>(
+      `/companies/autocomplete?query=${encodeURIComponent(query)}&limit=${limit}`
+    ),
+};
+
 // Export all APIs
 export const api = {
   auth: authApi,
@@ -277,6 +382,7 @@ export const api = {
   fuel: fuelApi,
   balance: balanceApi,
   dashboard: dashboardApi,
+  companies: companiesApi,
 };
 
 export default api;

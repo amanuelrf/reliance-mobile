@@ -1,10 +1,14 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import {
     RefreshControl,
     ScrollView,
     StyleSheet,
     TextInput,
     View,
+    FlatList,
+    Pressable,
+    Keyboard,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,7 +18,7 @@ import { Card } from '@/components/ui/card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { creditApi } from '@/services/api';
+import { creditApi, companiesApi, CompanyAutocompleteResponse } from '@/services/api';
 
 type BrokerCheckStatus = 'Approved' | 'Review Required' | 'Denied';
 
@@ -49,6 +53,14 @@ export default function CreditCheckScreen() {
     { broker: 'Carrier X', amount: 1450, status: 'Denied', time: 'Jan 12' },
   ]);
 
+  // Autocomplete state
+  const [autocompleteResults, setAutocompleteResults] = useState<CompanyAutocompleteResponse[]>([]);
+  const [isLoadingAutocomplete, setIsLoadingAutocomplete] = useState(false);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [selectedMcNumber, setSelectedMcNumber] = useState<number | null>(null);
+  const inputRef = useRef<TextInput>(null);
+  const autocompleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const primaryColor = useThemeColor({}, 'primary');
   const successColor = useThemeColor({}, 'success');
   const warningColor = useThemeColor({}, 'warning');
@@ -68,6 +80,72 @@ export default function CreditCheckScreen() {
     return dangerColor;
   };
 
+  // Format display string for autocomplete results
+  const formatCompanyDisplay = (company: CompanyAutocompleteResponse): string => {
+    if (company.mc_number) {
+      return `${company.name} - MC: ${company.mc_number}`;
+    }
+    return company.name;
+  };
+
+  // Handle autocomplete search with debouncing
+  useEffect(() => {
+    // Clear existing timeout
+    if (autocompleteTimeoutRef.current) {
+      clearTimeout(autocompleteTimeoutRef.current);
+    }
+
+    const query = brokerIdentifier.trim();
+
+    // Don't search if query is too short or if we have a selected MC number
+    if (query.length < 3 || selectedMcNumber !== null) {
+      setAutocompleteResults([]);
+      setShowAutocomplete(false);
+      return;
+    }
+
+    // Debounce API call
+    autocompleteTimeoutRef.current = setTimeout(async () => {
+      setIsLoadingAutocomplete(true);
+      setShowAutocomplete(true);
+
+      const response = await companiesApi.autocomplete(query, 5);
+
+      if (response.error || !response.data) {
+        setAutocompleteResults([]);
+        setIsLoadingAutocomplete(false);
+        return;
+      }
+
+      setAutocompleteResults(response.data);
+      setIsLoadingAutocomplete(false);
+    }, 300);
+
+    return () => {
+      if (autocompleteTimeoutRef.current) {
+        clearTimeout(autocompleteTimeoutRef.current);
+      }
+    };
+  }, [brokerIdentifier, selectedMcNumber]);
+
+  // Handle autocomplete item selection
+  const handleSelectCompany = (company: CompanyAutocompleteResponse) => {
+    const displayValue = formatCompanyDisplay(company);
+    setBrokerIdentifier(displayValue);
+    setSelectedMcNumber(company.mc_number);
+    setShowAutocomplete(false);
+    Keyboard.dismiss();
+  };
+
+  // Handle input change
+  const handleBrokerIdentifierChange = (value: string) => {
+    setBrokerIdentifier(value);
+    // Clear selected MC number when user types
+    if (selectedMcNumber !== null) {
+      setSelectedMcNumber(null);
+    }
+  };
+
   const handleCreditCheck = async () => {
     const trimmedBroker = brokerIdentifier.trim();
     const parsedAmount = Number(loadAmount.replace(/[^0-9.]/g, ''));
@@ -84,9 +162,12 @@ export default function CreditCheckScreen() {
 
     setFormError(null);
     setIsChecking(true);
+    setShowAutocomplete(false);
 
+    // Use selected MC number if available, otherwise use broker identifier
     const response = await creditApi.checkScore({
-      broker_name: trimmedBroker,
+      broker_name: selectedMcNumber ? selectedMcNumber.toString() : trimmedBroker,
+      broker_mc_number: selectedMcNumber ? selectedMcNumber.toString() : undefined,
       load_amount: parsedAmount,
     });
 
@@ -114,6 +195,7 @@ export default function CreditCheckScreen() {
     setIsChecking(false);
     setBrokerIdentifier('');
     setLoadAmount('');
+    setSelectedMcNumber(null);
   };
 
   return (
@@ -125,6 +207,7 @@ export default function CreditCheckScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryColor} />
         }
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <View style={styles.header}>
@@ -141,19 +224,6 @@ export default function CreditCheckScreen() {
 
         <Card variant="elevated" style={styles.formCard}>
           <View style={styles.formField}>
-            <ThemedText style={styles.formLabel}>Broker / MC / DOT</ThemedText>
-            <TextInput
-              value={brokerIdentifier}
-              onChangeText={(value) => setBrokerIdentifier(value)}
-              placeholder="Enter broker name, MC, or DOT"
-              placeholderTextColor={textSecondary}
-              style={[styles.input, { backgroundColor: surfaceColor }]}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="next"
-            />
-          </View>
-          <View style={styles.formField}>
             <ThemedText style={styles.formLabel}>Load Amount ($)</ThemedText>
             <TextInput
               value={loadAmount}
@@ -162,8 +232,74 @@ export default function CreditCheckScreen() {
               placeholderTextColor={textSecondary}
               style={[styles.input, { backgroundColor: surfaceColor }]}
               keyboardType="decimal-pad"
-              returnKeyType="done"
+              returnKeyType="next"
             />
+          </View>
+          <View style={styles.formField}>
+            <ThemedText style={styles.formLabel}>Broker / MC / DOT</ThemedText>
+            <View style={styles.autocompleteContainer}>
+              <TextInput
+                ref={inputRef}
+                value={brokerIdentifier}
+                onChangeText={handleBrokerIdentifierChange}
+                onFocus={() => {
+                  if (autocompleteResults.length > 0 || brokerIdentifier.length >= 3) {
+                    setShowAutocomplete(true);
+                  }
+                }}
+                onBlur={() => {
+                  // Delay closing to allow item selection
+                  setTimeout(() => {
+                    setShowAutocomplete(false);
+                  }, 200);
+                }}
+                placeholder="Enter broker name, MC, or DOT"
+                placeholderTextColor={textSecondary}
+                style={[styles.input, { backgroundColor: surfaceColor }]}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+              />
+              {isLoadingAutocomplete && (
+                <View style={styles.loadingIndicator}>
+                  <ActivityIndicator size="small" color={primaryColor} />
+                </View>
+              )}
+              {showAutocomplete && (autocompleteResults.length > 0 || isLoadingAutocomplete) && (
+                <View style={[styles.autocompleteDropdown, { backgroundColor: surfaceColor }]}>
+                  {isLoadingAutocomplete ? (
+                    <View style={styles.autocompleteItem}>
+                      <ThemedText style={[styles.autocompleteText, { color: textSecondary }]}>
+                        Searching...
+                      </ThemedText>
+                    </View>
+                  ) : autocompleteResults.length === 0 ? (
+                    <View style={styles.autocompleteItem}>
+                      <ThemedText style={[styles.autocompleteText, { color: textSecondary }]}>
+                        No results found
+                      </ThemedText>
+                    </View>
+                  ) : (
+                    <FlatList
+                      data={autocompleteResults}
+                      keyExtractor={(item) => item.id.toString()}
+                      renderItem={({ item }) => (
+                        <Pressable
+                          style={styles.autocompleteItem}
+                          onPress={() => handleSelectCompany(item)}
+                        >
+                          <ThemedText style={styles.autocompleteText}>
+                            {formatCompanyDisplay(item)}
+                          </ThemedText>
+                        </Pressable>
+                      )}
+                      keyboardShouldPersistTaps="handled"
+                      nestedScrollEnabled
+                    />
+                  )}
+                </View>
+              )}
+            </View>
           </View>
           {formError && <ThemedText style={styles.errorText}>{formError}</ThemedText>}
           <Button
@@ -304,5 +440,34 @@ const styles = StyleSheet.create({
   recentScoreValue: {
     fontSize: 20,
     fontWeight: '700',
+  },
+  autocompleteContainer: {
+    position: 'relative',
+  },
+  loadingIndicator: {
+    position: 'absolute',
+    right: Spacing.sm,
+    top: '50%',
+    transform: [{ translateY: -10 }],
+  },
+  autocompleteDropdown: {
+    marginTop: 4,
+    borderRadius: BorderRadius.md,
+    maxHeight: 200,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  autocompleteItem: {
+    padding: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  autocompleteText: {
+    fontSize: 14,
   },
 });
